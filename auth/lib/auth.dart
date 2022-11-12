@@ -1,7 +1,8 @@
 import 'dart:io';
 
-import 'package:auth/controllers/app_user_controller.dart';
 import 'package:conduit/conduit.dart';
+
+import 'controllers/app_auth_controller.dart';
 
 class AppService extends ApplicationChannel {
   late final ManagedContext managedContext;
