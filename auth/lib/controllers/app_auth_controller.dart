@@ -19,19 +19,31 @@ class AppAuthController extends ResourceController {
               message: 'Fields password and username are required'));
     }
 
-    final User fetchedUser = User();
-
-    // connect to DB
-    // find user
-    // check password
-    // fetch user
-
-    return Response.ok(ResponseModel(data: {
-      'id': fetchedUser.id,
-      'refreshToken': fetchedUser.refreshToken,
-      'accessToken': fetchedUser.accessToken,
-    }, message: 'Successful authorization')
-        .toJson());
+    try {
+      final qFindUser = Query<User>(managedContext)
+        ..where((table) => table.username).equalTo(user.username)
+        ..returningProperties(
+            (table) => [table.id, table.salt, table.hashPassword]);
+      final findUser = await qFindUser.fetchOne();
+      if (findUser == null) {
+        throw QueryException.input('User is not found', []);
+      }
+      final requestHashPassword =
+          generatePasswordHash(user.password ?? '', findUser.salt ?? '');
+      if (requestHashPassword == findUser.hashPassword) {
+        await _updateTokens(findUser.id ?? -1, managedContext);
+        final newUser =
+            await managedContext.fetchObjectWithID<User>(findUser.id);
+        return Response.ok(ResponseModel(
+          data: newUser?.backing.contents,
+          message: 'Successful authorization',
+        ));
+      } else {
+        throw QueryException.input('Wrong password', []);
+      }
+    } on QueryException catch (error) {
+      return Response.serverError(body: ResponseModel(message: error.message));
+    }
   }
 
   @Operation.put()
@@ -54,12 +66,7 @@ class AppAuthController extends ResourceController {
           ..values.hashPassword = hashPassword;
         final createdUser = await qCreateUser.insert();
         id = createdUser.asMap()['id'];
-        final Map<String, dynamic> tokens = _getTokens(id);
-        final qUpdateTokens = Query<User>(transaction)
-          ..where((user) => user.id).equalTo(id)
-          ..values.accessToken = tokens['access']
-          ..values.refreshToken = tokens['refresh'];
-        await qUpdateTokens.updateOne();
+        await _updateTokens(id, transaction);
       });
       final userData = await managedContext.fetchObjectWithID<User>(id);
       return Response.ok(ResponseModel(
@@ -69,6 +76,15 @@ class AppAuthController extends ResourceController {
     } on QueryException catch (error) {
       return Response.serverError(body: ResponseModel(message: error.message));
     }
+  }
+
+  Future<void> _updateTokens(int id, ManagedContext transaction) async {
+    final Map<String, dynamic> tokens = _getTokens(id);
+    final qUpdateTokens = Query<User>(transaction)
+      ..where((user) => user.id).equalTo(id)
+      ..values.accessToken = tokens['access']
+      ..values.refreshToken = tokens['refresh'];
+    await qUpdateTokens.updateOne();
   }
 
   @Operation.post('refresh')
