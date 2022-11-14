@@ -8,7 +8,7 @@ version: '3.5'
 services:
 
   auth:
-    build: /auth
+    build: ./auth
     container_name: auth
     ports:
       - 6100:6100
