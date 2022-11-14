@@ -30,11 +30,27 @@ class AppUserController extends ResourceController {
   }
 
   @Operation.post()
-  Future<Response> updateProfile() async {
+  Future<Response> updateProfile(
+    @Bind.header(HttpHeaders.authorizationHeader) String header,
+    @Bind.body() User user,
+  ) async {
     try {
-      return AppResponse.ok(message: 'updateProfile');
+      final id = AppUtils.getIdFromHeader(header);
+      final fetchedUser = await managedContext.fetchObjectWithID<User>(id);
+      final qUpdateUser = Query<User>(managedContext)
+        ..where((user) => user.id).equalTo(id)
+        ..values.username = user.username ?? fetchedUser?.username
+        ..values.email = user.email ?? fetchedUser?.email;
+      await qUpdateUser.updateOne();
+      final updatedUser = await managedContext.fetchObjectWithID<User>(id)
+        ?..removePropertiesFromBackingMap(
+            [AppConst.accessToken, AppConst.refreshToken]);
+
+      return AppResponse.ok(
+          message: 'Successful update profile data',
+          body: updatedUser?.backing.contents);
     } catch (error) {
-      return AppResponse.serverError(error);
+      return AppResponse.serverError(error, message: "Error update profile");
     }
   }
 
