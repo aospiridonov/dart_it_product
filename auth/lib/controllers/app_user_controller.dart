@@ -1,5 +1,11 @@
+import 'dart:io';
+
 import 'package:auth/utils/app_response.dart';
+import 'package:auth/utils/app_utils.dart';
 import 'package:conduit/conduit.dart';
+
+import '../models/user.dart';
+import '../utils/app_const.dart';
 
 class AppUserController extends ResourceController {
   final ManagedContext managedContext;
@@ -7,11 +13,19 @@ class AppUserController extends ResourceController {
   AppUserController(this.managedContext);
 
   @Operation.get()
-  Future<Response> getProfile() async {
+  Future<Response> getProfile(
+      @Bind.header(HttpHeaders.authorizationHeader) String header) async {
     try {
-      return AppResponse.ok(message: 'getProfile');
+      final id = AppUtils.getIdFromHeader(header);
+      final user = await managedContext.fetchObjectWithID<User>(id)
+        ?..removePropertiesFromBackingMap(
+            [AppConst.accessToken, AppConst.refreshToken]);
+      return AppResponse.ok(
+          message: 'Successful profile acquisition',
+          body: user?.backing.contents);
     } catch (error) {
-      return AppResponse.serverError(error);
+      return AppResponse.serverError(error,
+          message: "Error profile acquisition");
     }
   }
 
