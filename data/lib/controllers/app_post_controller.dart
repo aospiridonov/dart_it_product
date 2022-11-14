@@ -82,19 +82,16 @@ class AppPostController extends ResourceController {
   }
 
   @Operation.get()
-  Future<Response> getPosts() async {
+  Future<Response> getPosts(
+    @Bind.header(HttpHeaders.authorizationHeader) String header,
+  ) async {
     try {
-      /*
       final id = AppUtils.getIdFromHeader(header);
-      final user = await managedContext.fetchObjectWithID<User>(id)
-        ?..removePropertiesFromBackingMap(
-            [AppConst.accessToken, AppConst.refreshToken]);
-            
-      return AppResponse.ok(
-          message: 'Successful profile acquisition',
-          body: user?.backing.contents);
-          */
-      return AppResponse.ok(message: 'Successful receipt of posts');
+      final qGetPosts = Query<Post>(managedContext)
+        ..where((post) => post.author?.id).equalTo(id);
+      final posts = await qGetPosts.fetch();
+      if (posts.isEmpty) return Response.notFound();
+      return Response.ok(posts);
     } catch (error) {
       return AppResponse.serverError(error, message: "Error receipt of posts");
     }
