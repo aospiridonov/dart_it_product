@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:auth/models/response_model.dart';
+import 'package:auth/utils/app_response.dart';
 import 'package:auth/utils/app_utils.dart';
 import 'package:conduit/conduit.dart';
 import 'package:jaguar_jwt/jaguar_jwt.dart';
@@ -35,15 +36,15 @@ class AppAuthController extends ResourceController {
         await _updateTokens(findUser.id ?? -1, managedContext);
         final newUser =
             await managedContext.fetchObjectWithID<User>(findUser.id);
-        return Response.ok(ResponseModel(
-          data: newUser?.backing.contents,
+        return AppResponse.ok(
+          body: newUser?.backing.contents,
           message: 'Successful authorization',
-        ));
+        );
       } else {
         throw QueryException.input('Wrong password', []);
       }
-    } on QueryException catch (error) {
-      return Response.serverError(body: ResponseModel(message: error.message));
+    } catch (error) {
+      return AppResponse.serverError(error, message: 'Authorization Error');
     }
   }
 
@@ -70,12 +71,12 @@ class AppAuthController extends ResourceController {
         await _updateTokens(id, transaction);
       });
       final userData = await managedContext.fetchObjectWithID<User>(id);
-      return Response.ok(ResponseModel(
-        data: userData?.backing.contents,
+      return AppResponse.ok(
+        body: userData?.backing.contents,
         message: 'Successful registration',
-      ));
-    } on QueryException catch (error) {
-      return Response.serverError(body: ResponseModel(message: error.message));
+      );
+    } catch (error) {
+      return AppResponse.serverError(error, message: 'Registration Error');
     }
   }
 
@@ -91,13 +92,13 @@ class AppAuthController extends ResourceController {
       } else {
         await _updateTokens(id, managedContext);
         final user = await managedContext.fetchObjectWithID<User>(id);
-        return Response.ok(ResponseModel(
-          data: user?.backing.contents,
+        return AppResponse.ok(
+          body: user?.backing.contents,
           message: 'Successful refresh of tokens',
-        ));
+        );
       }
-    } on QueryException catch (error) {
-      return Response.serverError(body: ResponseModel(message: error.message));
+    } catch (error) {
+      return AppResponse.serverError(error, message: 'Error refresh token');
     }
   }
 
