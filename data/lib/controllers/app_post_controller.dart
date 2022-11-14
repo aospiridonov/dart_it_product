@@ -34,6 +34,28 @@ class AppPostController extends ResourceController {
     }
   }
 
+  @Operation.get("id")
+  Future<Response> getPost(
+    @Bind.header(HttpHeaders.authorizationHeader) String header,
+    @Bind.path("id") int id,
+  ) async {
+    try {
+      final currentAuthorId = AppUtils.getIdFromHeader(header);
+      final post = await managedContext.fetchObjectWithID<Post>(id);
+      if (post == null) {
+        return AppResponse.ok(message: 'Post not found');
+      }
+      if (post.author?.id != currentAuthorId) {
+        return AppResponse.ok(message: 'Cant access to post');
+      }
+      post.backing.removeProperty('author');
+      return AppResponse.ok(
+          body: post.backing.contents, message: 'Successful post creation');
+    } catch (error) {
+      return AppResponse.serverError(error, message: "Error post creation");
+    }
+  }
+
   @Operation.get()
   Future<Response> getPosts() async {
     try {
